@@ -70,14 +70,21 @@ app.use(helmet());
 // --- Rate limiting ---
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000,
+  max: 2000, // Increased from 1000
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    return (
-      process.env.NODE_ENV === "development" && req.path.startsWith("/api/")
-    );
+    // Skip rate limiting for health checks and development environment
+    return req.path === '/health' || 
+           (process.env.NODE_ENV === "development" && req.path.startsWith("/api/"));
   },
+  handler: (req, res) => {
+    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too Many Requests',
+      message: 'Please try again later'
+    });
+  }
 });
 app.use(limiter);
 
@@ -110,12 +117,43 @@ app.use(
   })
 );
 
+// --- Server timeout settings ---
+app.set('timeout', 300000); // 5 minutes
+app.use((req, res, next) => {
+  req.setTimeout(300000); // 5 minutes
+  res.setTimeout(300000); // 5 minutes
+  next();
+});
+
+// --- Keep-alive configuration ---
+app.use((req, res, next) => {
+  res.set('Connection', 'keep-alive');
+  next();
+});
+
 // --- Body parsing ---
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// --- Request timeout middleware ---
+app.use((req, res, next) => {
+  const timeout = setTimeout(() => {
+    console.error(`Request timeout for ${req.method} ${req.url}`);
+    res.status(408).json({ 
+      error: 'Request Timeout', 
+      message: 'The request took too long to process'
+    });
+  }, 290000); // 4 minutes 50 seconds
+
+  res.on('finish', () => clearTimeout(timeout));
+  res.on('close', () => clearTimeout(timeout));
+  next();
+});
 
 // --- Logging ---
-app.use(morgan("combined"));
+app.use(morgan('combined', {
+  skip: (req) => req.url === '/health' // Skip logging health checks
+}));
 
 // --- Static uploads ---
 app.use(
