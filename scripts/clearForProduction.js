@@ -1,0 +1,69 @@
+// backend/scripts/clearForProduction.js
+// Run this script to clear sensitive data before production deployment
+
+const { run, transaction } = require("../config/azure-database");
+
+async function clearForProduction() {
+  try {
+    await transaction(async () => {
+      // Clear all requests
+      await run("DELETE FROM requests;");
+
+      // Clear all reviews
+      await run("DELETE FROM reviews;");
+
+      // Clear all stories except the featured one (replace 1 with your featured story ID)
+      const featuredStoryId = 1; // TODO: Set this to your actual featured story ID
+      await run("DELETE FROM stories WHERE id != ?;", [featuredStoryId]);
+
+      // Clear all users except admin and super_admin
+      await run(
+        "DELETE FROM users WHERE role NOT IN ('admin', 'super_admin');"
+      );
+
+      // Clear all activities
+      await run("DELETE FROM activities;");
+
+      // Set custom starting invoice number (insert dummy request)
+      const year = new Date().getFullYear();
+      const yearShort = year.toString().slice(-2);
+      const customInvoiceSeq = 0; // start from 0
+      const customInvoiceNumber = `OGL-${String(customInvoiceSeq).padStart(
+        3,
+        "0"
+      )}${yearShort}`;
+
+      await run(
+        `INSERT INTO requests (
+          requestNumber,
+          customerName,
+          customerEmail,
+          items,
+          totalAmount,
+          status,
+          createdAt
+        ) VALUES (?, ?, ?, ?, ?, ?, GETUTCDATE());`,
+        [
+          customInvoiceNumber,
+          "Dummy Customer",
+          "dummy@example.com",
+          JSON.stringify([]),
+          0,
+          "pending",
+        ]
+      );
+    });
+
+    console.log("✅ Successfully cleared production data");
+  } catch (error) {
+    console.error("❌ Error clearing data:", error);
+    process.exit(1);
+  }
+}
+
+// Run if this script is executed directly
+if (require.main === module) {
+  clearForProduction();
+}
+
+module.exports = clearForProduction;
