@@ -51,14 +51,14 @@ router.get("/stats", authenticateToken, requireAdmin, async (req, res) => {
 
         // Run all three queries in parallel for this table
         const [totalResult, thisMonthResult, lastMonthResult] = await Promise.all([
-          queryWithTimeout(`SELECT ${selectClause} FROM ${table} ${baseWhere}`, [], 3000),
+          queryWithTimeout(`SELECT ${selectClause} FROM ${table} ${baseWhere}`, [], 10000),
           queryWithTimeout(
             `SELECT ${selectClause}
              FROM ${table}
              ${baseWhere ? baseWhere + " AND" : "WHERE"}
              MONTH(createdAt) = ? AND YEAR(createdAt) = ?`,
             [currentMonth, currentYear],
-            3000
+            10000
           ),
           queryWithTimeout(
             `SELECT ${selectClause}
@@ -66,7 +66,7 @@ router.get("/stats", authenticateToken, requireAdmin, async (req, res) => {
              ${baseWhere ? baseWhere + " AND" : "WHERE"}
              MONTH(createdAt) = ? AND YEAR(createdAt) = ?`,
             [lastMonth, lastMonthYear],
-            3000
+            10000
           )
         ]);
 

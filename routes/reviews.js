@@ -77,7 +77,7 @@ router.get("/product/:productId", async (req, res) => {
 // Get all reviews (admin only)
 router.get("/admin/all", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
+    if (req.user.role !== "admin" && req.user.role !== "super_admin") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -252,7 +252,7 @@ router.put(
       const review = existingReview[0];
 
       // Check if user can edit this review
-      if (req.user.role !== "admin" && review.userId !== req.user.id) {
+      if (req.user.role !== "admin" && req.user.role !== "super_admin" && review.userId !== req.user.id) {
         return res
           .status(403)
           .json({ message: "You can only edit your own reviews" });
@@ -295,7 +295,7 @@ router.delete("/:reviewId", authenticateToken, async (req, res) => {
     const review = existingReview[0];
 
     // Check if user can delete this review
-    if (req.user.role !== "admin" && review.userId !== req.user.id) {
+    if (req.user.role !== "admin" && req.user.role !== "super_admin" && review.userId !== req.user.id) {
       return res
         .status(403)
         .json({ message: "You can only delete your own reviews" });
@@ -320,7 +320,7 @@ router.patch(
   authenticateToken,
   async (req, res) => {
     try {
-      if (req.user.role !== "admin") {
+      if (req.user.role !== "admin" && req.user.role !== "super_admin") {
         return res.status(403).json({ message: "Access denied" });
       }
 
